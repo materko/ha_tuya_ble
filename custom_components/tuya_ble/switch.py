@@ -7,6 +7,7 @@ import logging
 from typing import Any, Callable
 
 from homeassistant.components.switch import (
+    SwitchDeviceClass,
     SwitchEntityDescription,
     SwitchEntity,
 )
@@ -323,6 +324,26 @@ mapping: dict[str, TuyaBLECategorySwitchMapping] = {
                     description=SwitchEntityDescription(
                         key="water_valve",
                         entity_registry_enabled_default=True,
+                    ),
+                ),
+            ],
+        },
+    ),
+    "kg": TuyaBLECategorySwitchMapping(
+        products={
+            "bs3ubslo": [  # Touch Switch, two gangs
+                TuyaBLESwitchMapping(
+                    dp_id=1,
+                    description=SwitchEntityDescription(
+                        key="switch_1",
+                        device_class=SwitchDeviceClass.SWITCH,
+                    ),
+                ),
+                TuyaBLESwitchMapping(
+                    dp_id=2,
+                    description=SwitchEntityDescription(
+                        key="switch_2",
+                        device_class=SwitchDeviceClass.SWITCH,
                     ),
                 ),
             ],

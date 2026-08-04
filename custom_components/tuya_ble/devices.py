@@ -300,6 +300,14 @@ devices_database: dict[str, TuyaBLECategoryInfo] = {
             ),
         },
     ),
+    "kg": TuyaBLECategoryInfo(
+        products={
+            "bs3ubslo":  # device product_id
+            TuyaBLEProductInfo(
+                name="Touch Switch",
+            ),
+        },
+    ),
 }
 
 

@@ -175,6 +175,12 @@
             "lock_motor_state": {
                 "name": "Motor State"
             },
+            "switch_1": {
+                "name": "Switch 1"
+            },
+            "switch_2": {
+                "name": "Switch 2"
+            },
             "low_battery_alarm": {
                 "name": "Low battery alarm"
             },
