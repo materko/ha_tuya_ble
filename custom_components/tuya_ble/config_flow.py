@@ -12,7 +12,7 @@ from tuya_iot import AuthType
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
-    OptionsFlowWithConfigEntry,
+    OptionsFlow,
 )
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
@@ -22,7 +22,7 @@ from homeassistant.const import CONF_ADDRESS
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowHandler, FlowResult
 
-from homeassistant.components.tuya.const import (
+from .tuya_const import (
     CONF_ACCESS_ID,
     CONF_ACCESS_SECRET,
     CONF_APP_TYPE,
@@ -151,12 +151,15 @@ def _show_login_form(
     )
 
 
-class TuyaBLEOptionsFlow(OptionsFlowWithConfigEntry):
+class TuyaBLEOptionsFlow(OptionsFlow):
     """Handle a Tuya BLE options flow."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
-        super().__init__(config_entry)
+        super().__init__()
+        # Kept under a private name: assigning `self.config_entry` is rejected
+        # by Home Assistant 2025.12+, where the base class provides it itself.
+        self._entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -171,13 +174,13 @@ class TuyaBLEOptionsFlow(OptionsFlowWithConfigEntry):
         errors: dict[str, str] = {}
         placeholders: dict[str, Any] = {}
         credentials: TuyaBLEDeviceCredentials | None = None
-        address: str | None = self.config_entry.data.get(CONF_ADDRESS)
+        address: str | None = self._entry.data.get(CONF_ADDRESS)
 
         if user_input is not None:
             entry: TuyaBLEData | None = None
             domain_data = self.hass.data.get(DOMAIN)
             if domain_data:
-                entry = domain_data.get(self.config_entry.entry_id)
+                entry = domain_data.get(self._entry.entry_id)
             if entry:
                 login_data = await _try_login(
                     entry.manager,
@@ -191,7 +194,7 @@ class TuyaBLEOptionsFlow(OptionsFlowWithConfigEntry):
                     )
                     if credentials:
                         return self.async_create_entry(
-                            title=self.config_entry.title,
+                            title=self._entry.title,
                             data=entry.manager.data,
                         )
                     else:
@@ -199,7 +202,7 @@ class TuyaBLEOptionsFlow(OptionsFlowWithConfigEntry):
 
         if user_input is None:
             user_input = {}
-            user_input.update(self.config_entry.options)
+            user_input.update(self._entry.options)
 
         return _show_login_form(self, user_input, errors, placeholders)
 
