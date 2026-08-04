@@ -18,6 +18,7 @@ from homeassistant.const import (
     PERCENTAGE,
     SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
     EntityCategory,
+    Platform,
     UnitOfTemperature,
     UnitOfTime,
     UnitOfVolume,
@@ -342,6 +343,8 @@ def get_mapping_by_device(device: TuyaBLEDevice) -> list[TuyaBLESensorMapping]:
 
 class TuyaBLESensor(TuyaBLEEntity, SensorEntity):
     """Representation of a Tuya BLE sensor."""
+
+    _entity_domain: str = Platform.SENSOR
 
     def __init__(
         self,

@@ -13,7 +13,7 @@ from homeassistant.components.switch import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.const import EntityCategory
+from homeassistant.const import EntityCategory, Platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 
@@ -368,6 +368,8 @@ def get_mapping_by_device(device: TuyaBLEDevice) -> list[TuyaBLECategorySwitchMa
 
 class TuyaBLESwitch(TuyaBLEEntity, SwitchEntity):
     """Representation of a Tuya BLE Switch."""
+
+    _entity_domain: str = Platform.SWITCH
 
     def __init__(
         self,

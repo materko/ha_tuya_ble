@@ -11,6 +11,7 @@ from homeassistant.components.button import (
     ButtonEntity,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
@@ -127,6 +128,8 @@ def get_mapping_by_device(device: TuyaBLEDevice) -> list[TuyaBLECategoryButtonMa
 
 class TuyaBLEButton(TuyaBLEEntity, ButtonEntity):
     """Representation of a Tuya BLE Button."""
+
+    _entity_domain: str = Platform.BUTTON
 
     def __init__(
         self,

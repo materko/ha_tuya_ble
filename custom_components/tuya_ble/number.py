@@ -16,6 +16,7 @@ from homeassistant.const import (
     CONCENTRATION_PARTS_PER_MILLION,
     PERCENTAGE,
     EntityCategory,
+    Platform,
     UnitOfTemperature,
     UnitOfTime,
     UnitOfVolume,
@@ -447,6 +448,8 @@ def get_mapping_by_device(device: TuyaBLEDevice) -> list[TuyaBLECategoryNumberMa
 
 class TuyaBLENumber(TuyaBLEEntity, NumberEntity):
     """Representation of a Tuya BLE Number."""
+
+    _entity_domain: str = Platform.NUMBER
 
     def __init__(
         self,
