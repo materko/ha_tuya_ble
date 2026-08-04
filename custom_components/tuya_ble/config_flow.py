@@ -109,6 +109,16 @@ async def _try_login(
         if response.get(TUYA_RESPONSE_SUCCESS, False):
             return data
 
+        # Only the last attempt ends up in the form, so record each one -
+        # the schemas often fail for different reasons.
+        _LOGGER.debug(
+            "Login to %s as app_type '%s' failed: %s (%s)",
+            data[CONF_ENDPOINT],
+            app_type,
+            response.get(TUYA_RESPONSE_MSG),
+            response.get(TUYA_RESPONSE_CODE),
+        )
+
     errors["base"] = "login_error"
     placeholders.update(
         {
