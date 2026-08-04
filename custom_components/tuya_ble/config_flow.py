@@ -56,14 +56,22 @@ async def _try_login(
     errors: dict[str, str],
     placeholders: dict[str, Any],
 ) -> dict[str, Any] | None:
-    response: dict[Any, Any] | None
+    response: dict[Any, Any] | None = None
     data: dict[str, Any]
 
-    country = [
-        country
-        for country in TUYA_COUNTRIES
-        if country.name == user_input[CONF_COUNTRY_CODE]
-    ][0]
+    country = next(
+        (
+            country
+            for country in TUYA_COUNTRIES
+            if country.name == user_input[CONF_COUNTRY_CODE]
+        ),
+        None,
+    )
+    if country is None:
+        # An unknown country used to raise IndexError here, which killed the
+        # flow and left the frontend showing only "Invalid flow specified".
+        errors["base"] = "invalid_country"
+        return None
 
     data = {
         CONF_ENDPOINT: country.endpoint,
@@ -82,19 +90,32 @@ async def _try_login(
         else:
             data[CONF_AUTH_TYPE] = AuthType.SMART_HOME
 
-        response = await manager._login(data, True)
+        try:
+            response = await manager._login(data, True)
+        except Exception as ex:  # noqa: BLE001
+            # The Tuya SDK talks to the cloud with `requests`, so anything from
+            # a DNS failure to a TLS error surfaces as an exception. Report it
+            # in the form instead of letting it tear down the flow.
+            _LOGGER.exception("Tuya cloud login failed")
+            errors["base"] = "login_error"
+            placeholders.update(
+                {
+                    TUYA_RESPONSE_CODE: type(ex).__name__,
+                    TUYA_RESPONSE_MSG: str(ex),
+                }
+            )
+            return None
 
         if response.get(TUYA_RESPONSE_SUCCESS, False):
             return data
 
     errors["base"] = "login_error"
-    if response:
-        placeholders.update(
-            {
-                TUYA_RESPONSE_CODE: response.get(TUYA_RESPONSE_CODE),
-                TUYA_RESPONSE_MSG: response.get(TUYA_RESPONSE_MSG),
-            }
-        )
+    placeholders.update(
+        {
+            TUYA_RESPONSE_CODE: response.get(TUYA_RESPONSE_CODE) if response else None,
+            TUYA_RESPONSE_MSG: response.get(TUYA_RESPONSE_MSG) if response else None,
+        }
+    )
 
     return None
 
@@ -116,7 +137,11 @@ def _show_login_form(
     try:
         def_country = pycountry.countries.get(alpha_2=flow.hass.config.country)
         if def_country:
-            def_country_name = def_country.name
+            # pycountry follows ISO 3166 naming, Tuya does not always agree
+            # (e.g. "Czechia" vs "Czech Republic"). Offer the name only when
+            # the dropdown actually contains it.
+            if any(country.name == def_country.name for country in TUYA_COUNTRIES):
+                def_country_name = def_country.name
     except:
         pass
 

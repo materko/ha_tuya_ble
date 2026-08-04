@@ -6,6 +6,7 @@
     "error": {
       "device_not_registered": "Device is not registered in Tuya cloud",
       "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+      "invalid_country": "Selected country is not supported by Tuya",
       "login_error": "Login error ({code}): {msg}"
     },
     "flow_title": "{name}",
@@ -218,6 +219,7 @@
     "error": {
       "device_not_registered": "Device is not registered in Tuya cloud",
       "invalid_auth": "[%key:common::config_flow::error::invalid_auth%]",
+      "invalid_country": "Selected country is not supported by Tuya",
       "login_error": "Login error ({code}): {msg}"
     },
     "step": {
