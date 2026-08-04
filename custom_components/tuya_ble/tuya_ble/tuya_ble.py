@@ -614,8 +614,17 @@ class TuyaBLEDevice:
                     continue
 
                 if self._client and self._client.is_connected:
+                    # Both values come from the advertisement and decide
+                    # whether the request can be understood at all: the packet
+                    # is framed for this protocol version and encrypted with
+                    # the login key derived from the local key.
                     _LOGGER.debug(
-                        "%s: Sending device info request", self.address)
+                        "%s: Sending device info request; "
+                        "advertised protocol version: %s, bound: %s",
+                        self.address,
+                        self._protocol_version,
+                        self._is_bound,
+                    )
                     try:
                         if not await self._send_packet_while_connected(
                             TuyaBLECode.FUN_SENDER_DEVICE_INFO,
