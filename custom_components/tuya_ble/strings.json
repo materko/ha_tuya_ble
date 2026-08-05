@@ -54,6 +54,12 @@
             }
         },
         "button": {
+            "button_1_click": {
+                "name": "Button 1 click"
+            },
+            "button_2_click": {
+                "name": "Button 2 click"
+            },
             "push": {
                 "name": "Push"
             },
@@ -70,6 +76,18 @@
             }
         },
         "number": {
+            "touch_time_1": {
+                "name": "Touch time 1"
+            },
+            "off_touch_time_1": {
+                "name": "Off touch time 1"
+            },
+            "touch_time_2": {
+                "name": "Touch time 2"
+            },
+            "off_touch_time_2": {
+                "name": "Off touch time 2"
+            },
             "ble_unlock_check": {
                 "name": "Unlock"
             },
@@ -120,6 +138,14 @@
             }
         },
         "select": {
+            "fingerbot_mode_2": {
+                "name": "Mode 2",
+                "state": {
+                    "click": "Click",
+                    "program": "Program",
+                    "switch": "Switch"
+                }
+            },
             "beep_volume": {
                 "name": "Lock Volume"
             },
@@ -129,6 +155,7 @@
             "fingerbot_mode": {
                 "name": "Mode",
                 "state": {
+                    "click": "Click",
                     "program": "Program",
                     "push": "Push",
                     "switch": "Switch"
@@ -224,6 +251,14 @@
             }
         },
         "sensor": {
+            "charge_status": {
+                "name": "Charge status",
+                "state": {
+                    "none": "Not charging",
+                    "charging": "Charging",
+                    "charge_done": "Charged"
+                }
+            },
             "alarm_lock": {
                 "name": "Alarm",
                 "state": {
@@ -381,6 +416,24 @@
             }
         },
         "switch": {
+            "switch_2": {
+                "name": "Switch 2"
+            },
+            "program_2": {
+                "name": "Program 2"
+            },
+            "touch_enable_1": {
+                "name": "Touch enable 1"
+            },
+            "touch_enable_2": {
+                "name": "Touch enable 2"
+            },
+            "invert_switch_1": {
+                "name": "Invert switch 1"
+            },
+            "invert_switch_2": {
+                "name": "Invert switch 2"
+            },
             "automatic_lock": {
                 "name": "Automatic lock"
             },
