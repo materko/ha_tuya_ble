@@ -66,9 +66,10 @@ FD50_DEVICE_INFO_PRODUCT_IDS = frozenset({"jntxv3q4"})
 
 # Products that need the same non-empty device info payload as the FD50 ones,
 # but expose the a201 characteristics rather than the FD50 pair. Local
-# addition, not upstream: bs3ubslo accepts the connection and then ignores a
-# device info request carrying no payload.
-DEVICE_INFO_PAYLOAD_PRODUCT_IDS = frozenset({"bs3ubslo"})
+# addition, not upstream. Empty again: the payload was tried while the
+# protocol version was stuck at its default of 2, and upstream only ever
+# sends it together with that version.
+DEVICE_INFO_PAYLOAD_PRODUCT_IDS: frozenset[str] = frozenset()
 
 
 # @dataclass
