@@ -71,7 +71,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         ) from ex
     """
 
-    hass.add_job(device.update())
+    # Not hass.add_job: that task is tracked by bootstrap, so a device stuck in
+    # the connect and retry loop holds up the whole Home Assistant start up. A
+    # background task is excluded from that wait and is cancelled when the entry
+    # unloads.
+    entry.async_create_background_task(
+        hass, device.update(), name=f"{DOMAIN} {address} initial update"
+    )
 
     @callback
     def _async_update_ble(
