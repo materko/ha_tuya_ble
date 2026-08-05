@@ -309,6 +309,9 @@ class TuyaBLEDevice:
         self._seq_num_lock = asyncio.Lock()
 
         self._advertisement_decoded = False
+        # Only ever assigned by a successful advertisement decode, yet the uuid
+        # property reads it unconditionally.
+        self._uuid: str | None = None
         self._is_bound = False
         self._flags = 0
         self._protocol_version = 2
@@ -452,6 +455,17 @@ class TuyaBLEDevice:
         # and decoding one costs an AES pass, so stop once it has worked.
         if self._advertisement_decoded:
             return
+        try:
+            self._decode_advertisement_data_unguarded()
+        except Exception:  # noqa: BLE001
+            # Nothing here is required to set the device up: the values are
+            # hints that a device info response later replaces. An advertisement
+            # in an unexpected shape must not take the config entry down.
+            _LOGGER.debug(
+                "%s: Could not decode advertisement", self.address, exc_info=True
+            )
+
+    def _decode_advertisement_data_unguarded(self) -> None:
         raw_product_id: bytes | None = None
         # raw_product_key: bytes | None = None
         raw_uuid: bytes | None = None
