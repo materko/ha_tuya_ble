@@ -64,6 +64,12 @@ BLEAK_EXCEPTIONS = (*BLEAK_RETRY_EXCEPTIONS, OSError)
 
 FD50_DEVICE_INFO_PRODUCT_IDS = frozenset({"jntxv3q4"})
 
+# Products that need the same non-empty device info payload as the FD50 ones,
+# but expose the a201 characteristics rather than the FD50 pair. Local
+# addition, not upstream: bs3ubslo accepts the connection and then ignores a
+# device info request carrying no payload.
+DEVICE_INFO_PAYLOAD_PRODUCT_IDS = frozenset({"bs3ubslo"})
+
 
 # @dataclass
 class TuyaBLEEntityDescription:
@@ -348,6 +354,13 @@ class TuyaBLEDevice:
         return (
             self._characteristic_notify == CHARACTERISTIC_NOTIFY_FD50
             and self.product_id in FD50_DEVICE_INFO_PRODUCT_IDS
+        )
+
+    def _requires_device_info_payload(self) -> bool:
+        """Return whether the device info request needs a non-empty payload."""
+        return (
+            self._requires_fd50_device_info_handshake()
+            or self.product_id in DEVICE_INFO_PAYLOAD_PRODUCT_IDS
         )
 
     def _build_pairing_request(self) -> bytes:
@@ -827,13 +840,22 @@ class TuyaBLEDevice:
                     continue
 
                 if self._client and self._client.is_connected:
-                    _LOGGER.debug("%s: Sending device info request", self.address)
+                    _LOGGER.debug(
+                        "%s: Sending device info request; product: %s, "
+                        "protocol version: %s, bound: %s, notify: %s, payload: %s",
+                        self.address,
+                        self.product_id,
+                        self._protocol_version,
+                        self._is_bound,
+                        self._characteristic_notify,
+                        "00f3" if self._requires_device_info_payload() else "empty",
+                    )
                     try:
                         if not await self._send_packet_while_connected(
                             TuyaBLECode.FUN_SENDER_DEVICE_INFO,
                             (
                                 b"\x00\xf3"
-                                if self._requires_fd50_device_info_handshake()
+                                if self._requires_device_info_payload()
                                 else bytes(0)
                             ),
                             0,
