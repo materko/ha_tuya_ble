@@ -274,6 +274,25 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
             self._data.update(cache_item.login)
             break
 
+    def _credentials_match_address(self, address: str) -> bool:
+        """Whether the cached credentials belong to the requested device.
+
+        _has_credentials only asks whether the keys are populated, so without
+        this a second device is handed whatever the first one left behind:
+        its local key, its device id, and entity unique ids that collide.
+        Data predating this check carries no address and is trusted, since a
+        single device setup stores exactly its own credentials.
+        """
+        cached_address = self._data.get(CONF_ADDRESS)
+        if cached_address is None or cached_address.upper() == address.upper():
+            return True
+        _LOGGER.debug(
+            "Cached credentials belong to %s, not to %s; asking the cloud",
+            cached_address,
+            address,
+        )
+        return False
+
     async def get_device_credentials(
         self,
         address: str,
@@ -286,7 +305,11 @@ class HASSTuyaBLEDeviceManager(AbstaractTuyaBLEDeviceManager):
         credentials: dict[str, any] | None = None
         result: TuyaBLEDeviceCredentials | None = None
 
-        if not force_update and self._has_credentials(self._data):
+        if (
+            not force_update
+            and self._has_credentials(self._data)
+            and self._credentials_match_address(address)
+        ):
             credentials = self._data.copy()
         else:
             cache_key: str | None = None
