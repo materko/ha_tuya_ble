@@ -12,36 +12,41 @@ from tuya_iot import AuthType
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
-    OptionsFlow,
+    OptionsFlowWithConfigEntry,
 )
 from homeassistant.components.bluetooth import (
     BluetoothServiceInfoBleak,
     async_discovered_service_info,
 )
-from homeassistant.const import CONF_ADDRESS
+from homeassistant.const import (
+    CONF_ADDRESS,
+    CONF_COUNTRY_CODE,
+    CONF_PASSWORD,
+    CONF_USERNAME,
+)
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowHandler, FlowResult
+from homeassistant.helpers.selector import (
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
-from .tuya_const import (
+from .tuya_ble import SERVICE_UUIDS, TuyaBLEDeviceCredentials
+
+from .const import (
+    TUYA_COUNTRIES,
+    TUYA_SMART_APP,
+    SMARTLIFE_APP,
+    TUYA_RESPONSE_SUCCESS,
+    TUYA_RESPONSE_CODE,
+    TUYA_RESPONSE_MSG,
     CONF_ACCESS_ID,
     CONF_ACCESS_SECRET,
     CONF_APP_TYPE,
     CONF_AUTH_TYPE,
-    CONF_COUNTRY_CODE,
     CONF_ENDPOINT,
-    CONF_PASSWORD,
-    CONF_USERNAME,
-    SMARTLIFE_APP,
-    TUYA_COUNTRIES,
-    TUYA_RESPONSE_CODE,
-    TUYA_RESPONSE_MSG,
-    TUYA_RESPONSE_SUCCESS,
-    TUYA_SMART_APP,
-)
-
-from .tuya_ble import SERVICE_UUID, TuyaBLEDeviceCredentials
-
-from .const import (
+    CONF_SEC_KEY,
     DOMAIN,
 )
 from .devices import TuyaBLEData, get_device_readable_name
@@ -56,22 +61,14 @@ async def _try_login(
     errors: dict[str, str],
     placeholders: dict[str, Any],
 ) -> dict[str, Any] | None:
-    response: dict[Any, Any] | None = None
+    response: dict[Any, Any] | None
     data: dict[str, Any]
 
-    country = next(
-        (
-            country
-            for country in TUYA_COUNTRIES
-            if country.name == user_input[CONF_COUNTRY_CODE]
-        ),
-        None,
-    )
-    if country is None:
-        # An unknown country used to raise IndexError here, which killed the
-        # flow and left the frontend showing only "Invalid flow specified".
-        errors["base"] = "invalid_country"
-        return None
+    country = [
+        country
+        for country in TUYA_COUNTRIES
+        if country.name == user_input[CONF_COUNTRY_CODE]
+    ][0]
 
     data = {
         CONF_ENDPOINT: country.endpoint,
@@ -82,6 +79,8 @@ async def _try_login(
         CONF_PASSWORD: user_input[CONF_PASSWORD],
         CONF_COUNTRY_CODE: country.country_code,
     }
+    if sec_key := user_input.get(CONF_SEC_KEY):
+        data[CONF_SEC_KEY] = sec_key
 
     for app_type in (TUYA_SMART_APP, SMARTLIFE_APP, ""):
         data[CONF_APP_TYPE] = app_type
@@ -90,69 +89,24 @@ async def _try_login(
         else:
             data[CONF_AUTH_TYPE] = AuthType.SMART_HOME
 
-        try:
-            response = await manager._login(data, True)
-        except Exception as ex:  # noqa: BLE001
-            # The Tuya SDK talks to the cloud with `requests`, so anything from
-            # a DNS failure to a TLS error surfaces as an exception. Report it
-            # in the form instead of letting it tear down the flow.
-            _LOGGER.exception("Tuya cloud login failed")
-            errors["base"] = "login_error"
-            placeholders.update(
-                {
-                    TUYA_RESPONSE_CODE: type(ex).__name__,
-                    TUYA_RESPONSE_MSG: str(ex),
-                }
-            )
-            return None
+        response = await manager._login(data, True)
 
         if response.get(TUYA_RESPONSE_SUCCESS, False):
             return data
 
-        # Only the last attempt ends up in the form, so record each one -
-        # the schemas often fail for different reasons.
-        _LOGGER.debug(
-            "Login to %s as app_type '%s' failed: %s (%s)",
-            data[CONF_ENDPOINT],
-            app_type,
-            response.get(TUYA_RESPONSE_MSG),
-            response.get(TUYA_RESPONSE_CODE),
+    errors["base"] = "login_error"
+    if response:
+        placeholders.update(
+            {
+                TUYA_RESPONSE_CODE: response.get(TUYA_RESPONSE_CODE),
+                TUYA_RESPONSE_MSG: response.get(TUYA_RESPONSE_MSG),
+            }
         )
 
-    errors["base"] = "login_error"
-    placeholders.update(
-        {
-            TUYA_RESPONSE_CODE: response.get(TUYA_RESPONSE_CODE) if response else None,
-            TUYA_RESPONSE_MSG: response.get(TUYA_RESPONSE_MSG) if response else None,
-        }
-    )
-
     return None
 
 
-def _get_default_country_name(country_code: str | None) -> str | None:
-    """Return the Tuya country name for an ISO 3166 alpha-2 code.
-
-    pycountry reads its database from disk the first time it is queried, so
-    this has to stay out of the event loop.
-    """
-    if not country_code:
-        return None
-    try:
-        def_country = pycountry.countries.get(alpha_2=country_code)
-    except Exception:  # noqa: BLE001
-        return None
-    if def_country is None:
-        return None
-    # pycountry follows ISO 3166 naming, Tuya does not always agree
-    # (e.g. "Czechia" vs "Czech Republic"). Offer the name only when the
-    # dropdown actually contains it.
-    if any(country.name == def_country.name for country in TUYA_COUNTRIES):
-        return def_country.name
-    return None
-
-
-async def _show_login_form(
+def _show_login_form(
     flow: FlowHandler,
     user_input: dict[str, Any],
     errors: dict[str, str],
@@ -165,9 +119,15 @@ async def _show_login_form(
                 user_input[CONF_COUNTRY_CODE] = country.name
                 break
 
-    def_country_name: str | None = await flow.hass.async_add_executor_job(
-        _get_default_country_name, flow.hass.config.country
-    )
+    def_country_name: str | None = None
+    try:
+        def_country = pycountry.countries.get(alpha_2=flow.hass.config.country)
+        if def_country:
+            def_country_name = def_country.name
+    except:
+        pass
+
+    placeholders["url"] = "https://www.home-assistant.io/integrations/tuya/"
 
     return flow.async_show_form(
         step_id="login",
@@ -187,6 +147,10 @@ async def _show_login_form(
                     CONF_ACCESS_SECRET,
                     default=user_input.get(CONF_ACCESS_SECRET, ""),
                 ): str,
+                vol.Optional(
+                    CONF_SEC_KEY,
+                    default=user_input.get(CONF_SEC_KEY, ""),
+                ): TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD)),
                 vol.Required(
                     CONF_USERNAME, default=user_input.get(CONF_USERNAME, "")
                 ): str,
@@ -200,15 +164,12 @@ async def _show_login_form(
     )
 
 
-class TuyaBLEOptionsFlow(OptionsFlow):
+class TuyaBLEOptionsFlow(OptionsFlowWithConfigEntry):
     """Handle a Tuya BLE options flow."""
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
-        super().__init__()
-        # Kept under a private name: assigning `self.config_entry` is rejected
-        # by Home Assistant 2025.12+, where the base class provides it itself.
-        self._entry = config_entry
+        super().__init__(config_entry)
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -223,13 +184,13 @@ class TuyaBLEOptionsFlow(OptionsFlow):
         errors: dict[str, str] = {}
         placeholders: dict[str, Any] = {}
         credentials: TuyaBLEDeviceCredentials | None = None
-        address: str | None = self._entry.data.get(CONF_ADDRESS)
+        address: str | None = self.config_entry.data.get(CONF_ADDRESS)
 
         if user_input is not None:
             entry: TuyaBLEData | None = None
             domain_data = self.hass.data.get(DOMAIN)
             if domain_data:
-                entry = domain_data.get(self._entry.entry_id)
+                entry = domain_data.get(self.config_entry.entry_id)
             if entry:
                 login_data = await _try_login(
                     entry.manager,
@@ -238,22 +199,24 @@ class TuyaBLEOptionsFlow(OptionsFlow):
                     placeholders,
                 )
                 if login_data:
+                    entry.manager.data.pop(CONF_SEC_KEY, None)
+                    entry.manager.data.update(login_data)
                     credentials = await entry.manager.get_device_credentials(
                         address, True, True
                     )
                     if credentials:
                         return self.async_create_entry(
-                            title=self._entry.title,
+                            title=self.config_entry.title,
                             data=entry.manager.data,
                         )
-                    else:
-                        errors["base"] = "device_not_registered"
+
+                    errors["base"] = "device_not_registered"
 
         if user_input is None:
             user_input = {}
-            user_input.update(self._entry.options)
+            user_input.update(self.config_entry.options)
 
-        return await _show_login_form(self, user_input, errors, placeholders)
+        return _show_login_form(self, user_input, errors, placeholders)
 
 
 class TuyaBLEConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -329,7 +292,7 @@ class TuyaBLEConfigFlow(ConfigFlow, domain=DOMAIN):
             if self._data is not None and len(self._data) > 0:
                 user_input.update(self._data)
 
-        return await _show_login_form(self, user_input, errors, placeholders)
+        return _show_login_form(self, user_input, errors, placeholders)
 
     async def async_step_device(
         self, user_input: dict[str, Any] | None = None
@@ -368,7 +331,7 @@ class TuyaBLEConfigFlow(ConfigFlow, domain=DOMAIN):
                     discovery.address in current_addresses
                     or discovery.address in self._discovered_devices
                     or discovery.service_data is None
-                    or not SERVICE_UUID in discovery.service_data.keys()
+                    or not any(uuid in discovery.service_data for uuid in SERVICE_UUIDS)
                 ):
                     continue
                 self._discovered_devices[discovery.address] = discovery
