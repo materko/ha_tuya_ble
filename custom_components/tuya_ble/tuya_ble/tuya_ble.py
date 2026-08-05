@@ -476,6 +476,32 @@ class TuyaBLEDevice:
                         raw_uuid = cipher.decrypt(raw_uuid)
                         self._uuid = raw_uuid.decode("utf-8")
 
+            # Everything above is best effort: a service data entry filed under
+            # an unexpected UUID, or manufacturer data under another company id,
+            # leaves the protocol version and bound flag at their constructor
+            # defaults, which read exactly like decoded values. Dump what the
+            # device actually advertised so the two cases can be told apart.
+            _LOGGER.debug(
+                "%s: Advertisement: service data %s, manufacturer data %s, "
+                "product id %s, uuid %s, cloud uuid %s",
+                self.address,
+                {
+                    uuid: value.hex()
+                    for uuid, value in (
+                        self._advertisement_data.service_data or {}
+                    ).items()
+                },
+                {
+                    company: value.hex()
+                    for company, value in (
+                        self._advertisement_data.manufacturer_data or {}
+                    ).items()
+                },
+                raw_product_id,
+                self._uuid,
+                self._device_info.uuid if self._device_info else None,
+            )
+
     @property
     def address(self) -> str:
         """Return the address."""
