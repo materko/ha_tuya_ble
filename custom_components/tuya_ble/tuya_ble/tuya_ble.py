@@ -397,6 +397,30 @@ class TuyaBLEDevice:
         _LOGGER.debug("%s: Updating", self.address)
         await self._send_packet(TuyaBLECode.FUN_SENDER_DEVICE_STATUS, bytes())
 
+    def _build_security_material(
+        self, local_key: str, sec_key: str | None
+    ) -> TuyaBLESecurityMaterial:
+        """Build the key material, tolerating a sec_key the cloud got wrong.
+
+        TuyaBLESecurityMaterial insists on exactly sixteen characters, and a
+        ValueError here takes the whole config entry down before anything can
+        be reported. A sec_key of another length is more likely a cloud
+        response we do not understand than a reason to give up, so fall back
+        to deriving from the local key alone and say what was received.
+        """
+        try:
+            return TuyaBLESecurityMaterial(local_key, sec_key)
+        except ValueError as err:
+            _LOGGER.warning(
+                "%s: Ignoring the sec_key from the cloud (%s characters): %s. "
+                "Falling back to local_key only, which uses a different key "
+                "derivation and security flag",
+                self.address,
+                len(sec_key) if sec_key else 0,
+                err,
+            )
+            return TuyaBLESecurityMaterial(local_key, None)
+
     async def _update_device_info(self) -> bool:
         if self._device_info is None:
             if self._device_manager:
@@ -404,7 +428,7 @@ class TuyaBLEDevice:
                     self._ble_device.address, False
                 )
             if self._device_info:
-                self._security_material = TuyaBLESecurityMaterial(
+                self._security_material = self._build_security_material(
                     self._device_info.local_key,
                     self._device_info.sec_key,
                 )
