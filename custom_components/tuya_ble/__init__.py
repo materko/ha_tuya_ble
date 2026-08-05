@@ -51,7 +51,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     manager = HASSTuyaBLEDeviceManager(hass, entry.options.copy())
-    device = TuyaBLEDevice(manager, ble_device)
+    # Hand over the last advertisement seen, so initialize() has something to
+    # decode. Without it the device runs on the default protocol version, which
+    # is what the device info request frame is built from.
+    service_info = bluetooth.async_last_service_info(hass, address.upper(), True)
+    device = TuyaBLEDevice(
+        manager, ble_device, service_info.advertisement if service_info else None
+    )
     await device.initialize()
     product_info = get_device_product_info(device)
 

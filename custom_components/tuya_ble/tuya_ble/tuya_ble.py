@@ -308,6 +308,7 @@ class TuyaBLEDevice:
         self._current_seq_num = 1
         self._seq_num_lock = asyncio.Lock()
 
+        self._advertisement_decoded = False
         self._is_bound = False
         self._flags = 0
         self._protocol_version = 2
@@ -343,6 +344,10 @@ class TuyaBLEDevice:
         """Set the ble device."""
         self._ble_device = ble_device
         self._advertisement_data = advertisement_data
+        # initialize() decodes once, at a point where the device is usually
+        # constructed without advertisement data, so without this the protocol
+        # version and bound flag keep their defaults for the whole session.
+        self._decode_advertisement_data()
 
     async def initialize(self) -> None:
         _LOGGER.debug("%s: Initializing", self.address)
@@ -443,6 +448,10 @@ class TuyaBLEDevice:
                     f.values = values
 
     def _decode_advertisement_data(self) -> None:
+        # Advertisements keep arriving for as long as the device is in range,
+        # and decoding one costs an AES pass, so stop once it has worked.
+        if self._advertisement_decoded:
+            return
         raw_product_id: bytes | None = None
         # raw_product_key: bytes | None = None
         raw_uuid: bytes | None = None
@@ -467,6 +476,7 @@ class TuyaBLEDevice:
                     MANUFACTURER_DATA_ID
                 )
                 if manufacturer_data and len(manufacturer_data) > 6:
+                    self._advertisement_decoded = True
                     self._is_bound = (manufacturer_data[0] & 0x80) != 0
                     self._protocol_version = manufacturer_data[1]
                     raw_uuid = manufacturer_data[6:]
