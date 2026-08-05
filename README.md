@@ -30,6 +30,15 @@ The integration works locally, but connection to Tuya BLE device requires device
   All features available in Home Assistant, programming (series of actions) is implemented for Fingerbot Plus.
   For programming exposed entities 'Program' (switch), 'Repeat forever', 'Repeats count', 'Idle position' and 'Program' (text). Format of program text is: 'position\[/time\];...' where position is in percents, optional time is in seconds (zero if missing).
 
+* Switches (category_id 'kg')
+  + Fingerbot Plus (product_ids 'mknd4lci', 'riecov42', 'gnpbj0bq'), the same device family as under 'szjqr', reported by newer firmware under this category.
+  + Fingerbot Touch (product_id 'bs3ubslo'), two independent touch buttons, built-in battery with USB type C charging.
+  + Switch Robot (product_id '4ctjfrzq').
+
+  Each Fingerbot Touch button has its own mode ('Click', 'Switch' or 'Program') and its own entities: a click button, a switch, touch and off-touch timing, touch enable and invert. The click button and the switch only appear while that button is in the matching mode, so pick the mode first.
+
+  The device must be paired with the Smart Life app before Home Assistant can reach it. A device that advertises as unpaired refuses the handshake, and the log then repeats 'timeout receiving response' after every connection.
+
 * Temperature and humidity sensors (category_id 'wsdcg')
   + Soil moisture sensor (product_id 'ojzlzzsw').
 
